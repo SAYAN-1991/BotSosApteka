@@ -29,6 +29,7 @@
 
 Для работы скрипта требуется файл конфигурации `config.py`, в котором должны быть указаны следующие параметры:
 
+- `URL`: Адерес сайта.
 - `LOGIN_USERNAME`: Имя пользователя для авторизации на веб-платформе.
 - `LOGIN_PASSWORD`: Пароль для авторизации на веб-платформе.
 - `TELEGRAM_BOT_TOKEN`: Токен вашего бота в Telegram, который используется для отправки сообщений.
@@ -38,6 +39,7 @@
 
 ```python
 # config.py
+URL = 'https://your_site.ru/'
 LOGIN_USERNAME = "your_username"
 LOGIN_PASSWORD = "your_password"
 TELEGRAM_BOT_TOKEN = "your_telegram_bot_token"
