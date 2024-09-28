@@ -27,8 +27,7 @@ SOS_FIELD_SELECT = "//span[text()='SOS Аптека стоит']"
 # SOS_FIELD_SELECT = "//span[text()='Сбойные чеки, расхождение в отчетности']"
 APPLY_BUTTON = "//div[text()='Применить']/../.."
 APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
-APPLICATION_DATE = "//table[@class='cellTableWidget']/tbody/tr/td[@__did='abstractBO@lastModifiedDate']//div[" \
-                   "@class='tableDatetimeAttr'] "
+APPLICATION_DATE = "//table[@class='cellTableWidget']/tbody/tr/td[@__did='serviceCall@SolvedDataTime']//div[@class='tableDatetimeAttr']"
 
 
 def send_message_to_channel(message, disable_notification=False):
@@ -62,7 +61,7 @@ def setup_driver():
     # options.add_argument("--incognito")
     # options.add_argument('--headless')
     driver = webdriver.Chrome(options=options)
-    driver.implicitly_wait(10)
+    driver.implicitly_wait(20)
     return driver
 
 
@@ -78,7 +77,7 @@ def login(driver, url, username, password):
 
 def navigate_to_applications(driver):
     """Переход на вкладку заявок."""
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, 10)
     applications_tab = wait.until(EC.element_to_be_clickable((By.XPATH, APPLICATIONS_TAB)))
     applications_tab.click()
     logging.info("2) Нажимаем на кнопку 'Заявки'")
@@ -87,22 +86,23 @@ def navigate_to_applications(driver):
 
 def apply_filters(driver):
     """Применение фильтров."""
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, 10)
+    logging.info("3) Применяем фильтр")
 
     try:
         reset_filter_button = wait.until(EC.presence_of_element_located((By.XPATH, RESET_FILTER)))
-        logging.info("3.1) Найден элемент 'Сбросить', нажимаем на него")
+        logging.debug("3.1) Найден элемент 'Сбросить', нажимаем на него")
         reset_filter_button.click()
         time.sleep(0.5)
-    except Exception:
-        logging.info("3.2) Элемент 'Сбросить' не найден, нажимаем на кнопку фильтрации")
+    except Exception :
+        logging.debug("3.2) Элемент 'Сбросить' не найден, нажимаем на кнопку фильтрации")
         filter_button = wait.until(EC.element_to_be_clickable((By.XPATH, FILTER_BUTTON)))
         filter_button.click()
         time.sleep(0.5)
 
     service_field = wait.until(EC.visibility_of_element_located((By.XPATH, SERVICE_FIELD)))
     service_field.click()
-    logging.info("4) Вставляем в первое поле 'Услуга'")
+    logging.debug("3.3) Вставляем в первое поле 'Услуга'")
     service_field.send_keys('услуга')
     time.sleep(0.5)
     service_field_select = wait.until(EC.visibility_of_element_located((By.XPATH, SERVICE_FIELD_SELECT)))
@@ -111,56 +111,55 @@ def apply_filters(driver):
 
     sos_field = driver.find_element(By.XPATH, SOS_FIELD)
     sos_field.click()
-    logging.info("5) Вставляем во второе поле 'SOS Аптека стоит'")
+    logging.debug("3.4) Вставляем во второе поле 'SOS Аптека стоит'")
     sos_field.send_keys('sos аптека стоит')
     # sos_field.send_keys('сбойные чеки, рас')  # Используется для отладки, таблица с данными
     time.sleep(1)
     sos_field_select = wait.until(EC.visibility_of_element_located((By.XPATH, SOS_FIELD_SELECT)))
     time.sleep(5)
     sos_field_select.click()
-    logging.info("5.1) Выбрали элемент во втором поле")
     time.sleep(0.5)
     apply_button = driver.find_element(By.XPATH, APPLY_BUTTON)
     apply_button.click()
-    logging.info("5.2) Нажали на кнопку применить")
+    logging.debug("3.5) Нажали на кнопку применить")
     time.sleep(0.5)
 
 
 def collect_data(driver):
     """Сбор номеров заявок и дат."""
-    wait = WebDriverWait(driver, 30)
-    logging.info("6) Готовим перечень заявок и их номера")
+    wait = WebDriverWait(driver, 10)
+    logging.info("4) Готовим перечень заявок и их номера")
     data = []
     try:
         time.sleep(2)
-        wait.until(EC.presence_of_element_located((By.XPATH, "//table[@class='cellTableWidget']")))
         # Проверяем, есть ли номера заявок
-        numbers = driver.find_elements(By.XPATH, APPLICATION_NUMBER)
-        dates = driver.find_elements(By.XPATH, APPLICATION_DATE)
+        numbers = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_NUMBER)))
+        dates = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_DATE)))
 
         if numbers and dates:
-            logging.info(f"Полученные номера заявок: {[num.text for num in numbers]}")
-            logging.info(f"Полученные даты регистрации: {[date.text for date in dates]}")
+            logging.debug(f"Полученные номера заявок: {[num.text for num in numbers]}")
+            logging.debug(f"Полученные даты регистрации: {[date.text for date in dates]}")
 
             data = list(zip([num.text for num in numbers], [date.text for date in dates]))
 
             for num, date in data:
-                logging.info(f"Номер заявки: {num}, Дата регистрации: {date}")
-        else:
-            logging.info("Нет заявок на данный момент.")
+                logging.debug(f"Номер заявки: {num}, Дата регистрации: {date}")
+
     except TimeoutException:
-        logging.info("Нет заявок на данный момент (TimeoutException).")
+        logging.info("4.1) Заявки не найдены (TimeoutException).")
     except Exception as e:
-        logging.exception("Произошла ошибка при сборе данных.")
-        send_message_to_channel(f"Произошла ошибка при сборе данных: {e}")
+        text_e = f"Произошла ошибка при сборе данных: {e}"
+        logging.exception(text_e)
+        send_message_to_channel(text_e)
     finally:
         return data
 
 
 def main():
     """Сердце"""
-    processed_applications = set()
-    last_message_time = datetime.now()
+    processed_applications = set()  # Множество уже отработанных заявок по которым уже было отправлено сообщение
+    last_message_time = datetime.now()  # Время последнего отправленного сообщения
+    startup_message_sent = False  # Флаг для отслеживания отправки стартового сообщения
     while True:
         driver = None
         try:
@@ -169,9 +168,10 @@ def main():
             navigate_to_applications(driver)
             apply_filters(driver)
             data = collect_data(driver)
+
             if data:
-                current_applications = set(num for num, date in data)
-                new_applications = current_applications - processed_applications
+                current_applications = set(num for num, date in data)  # Все заявки текущей итерации
+                new_applications = current_applications - processed_applications  # Новые заявки
                 if new_applications:
                     message_lines = []
                     for num, date in data:
@@ -186,15 +186,20 @@ def main():
                 else:
                     logging.info("Новых заявок нет.")
             else:
-                logging.info("Нет данных о заявках.")
+                if not startup_message_sent:
+                    startup_message = f"С момента запуска заявок не было {datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                    logging.info(f"Отправляем информационное сообщение без звука: {startup_message}")
+                    send_message_to_channel(startup_message, disable_notification=True)
+                    startup_message_sent = True
             if datetime.now() - last_message_time >= timedelta(hours=1):
                 info_message = f"Скрипт работает. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
-                logging.info("Отправляем информационное сообщение без звука.")
+                logging.info(f"Отправляем информационное сообщение без звука: {info_message}")
                 send_message_to_channel(info_message, disable_notification=True)  # Без звука
                 last_message_time = datetime.now()
         except Exception as e:
-            logging.exception("Произошла ошибка в main.")
-            send_message_to_channel(f"Произошла ошибка в main: {e}")
+            text_e = f"Произошла ошибка в main: {e}"
+            logging.exception(text_e)
+            send_message_to_channel(text_e)
         finally:
             if driver:
                 driver.quit()
