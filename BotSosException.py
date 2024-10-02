@@ -59,9 +59,13 @@ def setup_driver():
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--disable-infobars')
     # options.add_argument("--incognito")
-    # options.add_argument('--headless')
+    options.add_argument('--headless=old')  # Это улучшенная версия headless режима для новых версий Chrome
+    options.add_argument('--disable-gpu')  # Обязательно отключите GPU для работы headless режима на Windows
+    # options.add_argument('--no-sandbox')  # Иногда помогает на Windows
+    # options.add_argument('--disable-dev-shm-usage')  # Устраняет ошибки с использованием shared memory
+    options.add_argument('--window-size=1920,1080')
     driver = webdriver.Chrome(options=options)
-    driver.implicitly_wait(20)
+    driver.implicitly_wait(60)
     return driver
 
 
@@ -77,7 +81,7 @@ def login(driver, url, username, password):
 
 def navigate_to_applications(driver):
     """Переход на вкладку заявок."""
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 60)
     applications_tab = wait.until(EC.element_to_be_clickable((By.XPATH, APPLICATIONS_TAB)))
     applications_tab.click()
     logging.info("2) Нажимаем на кнопку 'Заявки'")
@@ -86,18 +90,18 @@ def navigate_to_applications(driver):
 
 def apply_filters(driver):
     """Применение фильтров."""
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 60)
     logging.info("3) Применяем фильтр")
 
     try:
-        reset_filter_button = wait.until(EC.presence_of_element_located((By.XPATH, RESET_FILTER)))
-        logging.debug("3.1) Найден элемент 'Сбросить', нажимаем на него")
-        reset_filter_button.click()
-        time.sleep(0.5)
-    except Exception :
-        logging.debug("3.2) Элемент 'Сбросить' не найден, нажимаем на кнопку фильтрации")
+        logging.debug("3.1) Элемент 'Сбросить' не найден, нажимаем на кнопку фильтрации")
         filter_button = wait.until(EC.element_to_be_clickable((By.XPATH, FILTER_BUTTON)))
         filter_button.click()
+        time.sleep(0.5)
+    except Exception:
+        reset_filter_button = wait.until(EC.presence_of_element_located((By.XPATH, RESET_FILTER)))
+        logging.debug("3.2) Найден элемент 'Сбросить', нажимаем на него")
+        reset_filter_button.click()
         time.sleep(0.5)
 
     service_field = wait.until(EC.visibility_of_element_located((By.XPATH, SERVICE_FIELD)))
@@ -127,7 +131,7 @@ def apply_filters(driver):
 
 def collect_data(driver):
     """Сбор номеров заявок и дат."""
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 30)
     logging.info("4) Готовим перечень заявок и их номера")
     data = []
     try:
