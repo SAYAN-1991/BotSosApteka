@@ -22,9 +22,9 @@ FILTER_BUTTON = "//div[@title='Фильтрация...']"
 SERVICE_FIELD = "(//div[@class='wide-content']//input[@class='formselect'])[1]"
 SERVICE_FIELD_SELECT = "//span[text()='Услуга']"
 SOS_FIELD = "(//div[@class='wide-content']//input[@class='formselect'])[2]"
-SOS_FIELD_SELECT = "//span[text()='SOS Аптека стоит']"
+# SOS_FIELD_SELECT = "//span[text()='SOS Аптека стоит']"
 # Используется для отладки, таблица с данными
-# SOS_FIELD_SELECT = "//span[text()='Сбойные чеки, расхождение в отчетности']"
+SOS_FIELD_SELECT = "//span[text()='Сбойные чеки, расхождение в отчетности']"
 APPLY_BUTTON = "//div[text()='Применить']/../.."
 APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
 APPLICATION_DATE = "//table[@class='cellTableWidget']/tbody/tr/td[@__did='serviceCall@SolvedDataTime']//div[@class='tableDatetimeAttr']"
@@ -60,10 +60,14 @@ def setup_driver():
     options.add_argument('--disable-infobars')
     # options.add_argument("--incognito")
     options.add_argument('--headless=old')  # Это улучшенная версия headless режима для новых версий Chrome
+    options.add_argument('--remote-debugging-port=9222')
     options.add_argument('--disable-gpu')  # Обязательно отключите GPU для работы headless режима на Windows
-    # options.add_argument('--no-sandbox')  # Иногда помогает на Windows
-    # options.add_argument('--disable-dev-shm-usage')  # Устраняет ошибки с использованием shared memory
+    options.add_argument('--no-sandbox')  # Иногда помогает на Windows
+    options.add_argument('--disable-dev-shm-usage')  # Устраняет ошибки с использованием shared memory
     options.add_argument('--window-size=1920,1080')
+    # options.add_argument('--disable-setuid-sandbox')
+    options.add_argument('--enable-logging')
+    options.add_argument('--v=1')
     driver = webdriver.Chrome(options=options)
     driver.implicitly_wait(60)
     return driver
@@ -116,8 +120,8 @@ def apply_filters(driver):
     sos_field = driver.find_element(By.XPATH, SOS_FIELD)
     sos_field.click()
     logging.debug("3.4) Вставляем во второе поле 'SOS Аптека стоит'")
-    sos_field.send_keys('sos аптека стоит')
-    # sos_field.send_keys('сбойные чеки, рас')  # Используется для отладки, таблица с данными
+    # sos_field.send_keys('sos аптека стоит')
+    sos_field.send_keys('сбойные чеки, рас')  # Используется для отладки, таблица с данными
     time.sleep(1)
     sos_field_select = wait.until(EC.visibility_of_element_located((By.XPATH, SOS_FIELD_SELECT)))
     time.sleep(5)
@@ -154,7 +158,7 @@ def collect_data(driver):
     except Exception as e:
         text_e = f"Произошла ошибка при сборе данных: {e}"
         logging.exception(text_e)
-        send_message_to_channel(text_e)
+        # send_message_to_channel(text_e)
     finally:
         return data
 
@@ -184,7 +188,7 @@ def main():
                     message = "Новые заявки:\n" + "\n".join(message_lines)
                     logging.info("Отправляем сообщение в Telegram:")
                     logging.info(message)
-                    send_message_to_channel(message, disable_notification=False)  # Со звуком
+                    send_message_to_channel(message, disable_notification=True)  # Со звуком False
                     processed_applications.update(new_applications)
                     last_message_time = datetime.now()
                 else:
@@ -203,7 +207,7 @@ def main():
         except Exception as e:
             text_e = f"Произошла ошибка в main: {e}"
             logging.exception(text_e)
-            send_message_to_channel(text_e)
+            # send_message_to_channel(text_e)
         finally:
             if driver:
                 driver.quit()
