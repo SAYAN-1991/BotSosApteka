@@ -99,10 +99,13 @@ def login(driver, url, username, password):
 def navigate_to_applications(driver):
     """Переход на вкладку заявок."""
     wait = WebDriverWait(driver, 60)
+    check_for_operation_error(driver)
     applications_tab = wait.until(EC.element_to_be_clickable((By.XPATH, APPLICATIONS_TAB)))
+    check_for_operation_error(driver)
     applications_tab.click()
     check_for_operation_error(driver)
     distributed_in_my_groups = wait.until(EC.element_to_be_clickable((By.XPATH, DISTRIBUTED_IN_MY_GROUPS_TAB)))
+    check_for_operation_error(driver)
     distributed_in_my_groups.click()
     check_for_operation_error(driver)
     logging.info("2) Перешли во вкладку 'Распределенные в моих группах'")
@@ -206,7 +209,7 @@ def main():
         except Exception as e:
             text_e = f"Произошла ошибка в main: {e}"
             logging.exception(text_e)
-            send_message_to_channel(text_e)
+            # send_message_to_channel(text_e)
             skip_sleep = True
         finally:
             if driver:
