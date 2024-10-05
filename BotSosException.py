@@ -22,7 +22,7 @@ SELECT_FILTER = "//span[text() = 'Распределенные заявки на
 SELECT_FILTER_ELEMENT_SOS = "//span[text()= 'SOS Аптека']"
 APPLY_BUTTON = "//div[text()='Применить']/../.."
 APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
-APPLICATION_DATE = "//table[@class='cellTableWidget']/tbody/tr/td[@__did='serviceCall@SolvedDataTime']//div[@class='tableDatetimeAttr']"
+APPLICATION_SUBJECT = "//table[@class='cellTableWidget']/tbody/tr/td[@__did='serviceCall@shortDescr']//div[@class='stringView']"
 OPERATION_ERROR = "//div[text()= 'Операция не может быть выполнена.']"
 
 
@@ -137,7 +137,7 @@ def collect_data(driver):
         # Проверяем, есть ли номера заявок
         numbers = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_NUMBER)))
         check_for_operation_error(driver)
-        dates = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_DATE)))
+        dates = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_SUBJECT)))
         check_for_operation_error(driver)
 
         if numbers and dates:
@@ -196,9 +196,9 @@ def main():
                 if not startup_message_sent:
                     startup_message = f"С момента запуска заявок не было {datetime.now().strftime('%Y-%m-%d %H:%M')}."
                     logging.info(f"Отправляем информационное сообщение без звука: {startup_message}")
-                    send_message_to_channel(startup_message, disable_notification=True)
+                    # send_message_to_channel(startup_message, disable_notification=True)
                     startup_message_sent = True
-            if datetime.now() - last_message_time >= timedelta(hours=1):
+            if datetime.now() - last_message_time >= timedelta(hours=6):
                 info_message = f"Скрипт работает. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
                 logging.info(f"Отправляем информационное сообщение без звука: {info_message}")
                 send_message_to_channel(info_message, disable_notification=True)  # Без звука
