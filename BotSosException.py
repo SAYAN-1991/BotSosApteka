@@ -21,8 +21,9 @@ DISTRIBUTED_IN_MY_GROUPS_TAB = "//a[text() = 'Распределенные в м
 SELECT_FILTER = "//span[text() = 'Распределенные заявки на коммандах']/../..//div[@title = 'Настройки списка отличаются от сохраненных в виде']/following-sibling::input"
 SELECT_FILTER_ELEMENT_SOS = "//span[text()= 'SOS Аптека']"
 APPLY_BUTTON = "//div[text()='Применить']/../.."
-APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
-APPLICATION_SUBJECT = "//table[@class='cellTableWidget']/tbody/tr/td[@__did='serviceCall@shortDescr']//div[@class='stringView']"
+# APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
+APPLICATION_NUMBER = "(//table[@class='cellTableWidget'])[3]/tbody/tr//div[@class='integerView']"
+APPLICATION_SUBJECT = "(//table[@class='cellTableWidget'])[3]/tbody/tr/td[@__did='serviceCall@shortDescr']//div[@class='stringView']"
 OPERATION_ERROR = "//div[text()= 'Операция не может быть выполнена.']"
 
 
@@ -72,7 +73,6 @@ def setup_driver():
     options.add_argument('--disable-autofill')
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--disable-infobars')
-    options.add_argument("--incognito")
     options.add_argument('--headless=old')  # Это улучшенная версия headless режима для новых версий Chrome
     options.add_argument('--remote-debugging-port=9222')
     options.add_argument('--disable-gpu')  # Обязательно отключите GPU для работы headless режима на Windows
@@ -117,13 +117,18 @@ def apply_filters(driver):
     select_filter = wait.until(EC.visibility_of_element_located((By.XPATH, SELECT_FILTER)))
     select_filter.click()
     check_for_operation_error(driver)
+    time.sleep(0.5)
+    select_filter.clear()
+    check_for_operation_error(driver)
+    time.sleep(0.5)
     select_filter.send_keys('SOS')
     check_for_operation_error(driver)
+    time.sleep(0.5)
     select_filter_element_sos = wait.until(EC.visibility_of_element_located((By.XPATH, SELECT_FILTER_ELEMENT_SOS)))
     select_filter_element_sos.click()
     check_for_operation_error(driver)
-    logging.debug("3) Применили фильтр")
-    time.sleep(0.5)
+    logging.info("3) Применили фильтр")
+    time.sleep(10)
 
 
 def collect_data(driver):
@@ -132,7 +137,6 @@ def collect_data(driver):
     logging.info("4) Готовим перечень заявок и их номера")
     data = []
     try:
-        time.sleep(2)
         check_for_operation_error(driver)
         # Проверяем, есть ли номера заявок
         numbers = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_NUMBER)))
@@ -142,12 +146,12 @@ def collect_data(driver):
 
         if numbers and dates:
             logging.debug(f"Полученные номера заявок: {[num.text for num in numbers]}")
-            logging.debug(f"Полученные даты регистрации: {[date.text for date in dates]}")
+            logging.debug(f"Полученные темы: {[date.text for date in dates]}")
 
             data = list(zip([num.text for num in numbers], [date.text for date in dates]))
 
             for num, date in data:
-                logging.debug(f"Номер заявки: {num}, Дата регистрации: {date}")
+                logging.debug(f"Номер заявки: {num}, Тема заявки: {date}")
 
     except TimeoutException:
         logging.info("4.1) Заявки не найдены (TimeoutException).")
@@ -183,7 +187,7 @@ def main():
                     message_lines = []
                     for num, date in data:
                         if num in new_applications:
-                            message_lines.append(f"Номер: {num}, Дата: {date}")
+                            message_lines.append(f"Номер: {num}, Тема: {date}")
                     message = "Новые заявки:\n" + "\n".join(message_lines)
                     logging.info("Отправляем сообщение в Telegram:")
                     logging.info(message)
@@ -196,7 +200,7 @@ def main():
                 if not startup_message_sent:
                     startup_message = f"С момента запуска заявок не было {datetime.now().strftime('%Y-%m-%d %H:%M')}."
                     logging.info(f"Отправляем информационное сообщение без звука: {startup_message}")
-                    # send_message_to_channel(startup_message, disable_notification=True)
+                    send_message_to_channel(startup_message, disable_notification=True)
                     startup_message_sent = True
             if datetime.now() - last_message_time >= timedelta(hours=6):
                 info_message = f"Скрипт работает. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
