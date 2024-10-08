@@ -141,17 +141,17 @@ def collect_data(driver):
         # Проверяем, есть ли номера заявок
         numbers = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_NUMBER)))
         check_for_operation_error(driver)
-        dates = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_SUBJECT)))
+        subjects = wait.until(EC.presence_of_all_elements_located((By.XPATH, APPLICATION_SUBJECT)))
         check_for_operation_error(driver)
 
-        if numbers and dates:
+        if numbers and subjects:
             logging.debug(f"Полученные номера заявок: {[num.text for num in numbers]}")
-            logging.debug(f"Полученные темы: {[date.text for date in dates]}")
+            logging.debug(f"Полученные темы: {[subject.text for subject in subjects]}")
 
-            data = list(zip([num.text for num in numbers], [date.text for date in dates]))
+            data = list(zip([num.text for num in numbers], [subject.text for subject in subjects]))
 
-            for num, date in data:
-                logging.debug(f"Номер заявки: {num}, Тема заявки: {date}")
+            for num, subject in data:
+                logging.debug(f"Номер заявки: {num}, Тема заявки: {subject}")
 
     except TimeoutException:
         logging.info("4.1) Заявки не найдены (TimeoutException).")
@@ -181,13 +181,13 @@ def main():
             data = collect_data(driver)
 
             if data:
-                current_applications = set(num for num, date in data)  # Все заявки текущей итерации
+                current_applications = set(num for num, subject in data)  # Все заявки текущей итерации
                 new_applications = current_applications - processed_applications  # Новые заявки
                 if new_applications:
                     message_lines = []
-                    for num, date in data:
+                    for num, subject in data:
                         if num in new_applications:
-                            message_lines.append(f"Номер: {num}, Тема: {date}")
+                            message_lines.append(f"Номер: {num}, Тема: {subject}")
                     message = "Новые заявки:\n" + "\n".join(message_lines)
                     logging.info("Отправляем сообщение в Telegram:")
                     logging.info(message)
