@@ -18,7 +18,7 @@ PASSWORD_FIELD = "//input[@name='password']"
 LOGIN_BUTTON = "//button[@type='button']"
 APPLICATIONS_TAB = "//a[text()='Заявки']"
 DISTRIBUTED_IN_MY_GROUPS_TAB = "//a[text() = 'Распределенные в моих группах']"
-SELECT_FILTER = "//span[text() = 'Распределенные заявки на коммандах']/../..//div[@title = 'Настройки списка отличаются от сохраненных в виде']/following-sibling::input"
+SELECT_FILTER = "(//div[@class = 'flex-greedy']//div[@title = 'Настройки списка отличаются от сохраненных в виде']/following-sibling::input)[2]"
 SELECT_FILTER_ELEMENT_SOS = "//span[text()= 'SOS Аптека']"
 APPLY_BUTTON = "//div[text()='Применить']/../.."
 # APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
@@ -73,7 +73,7 @@ def setup_driver():
     options.add_argument('--disable-autofill')
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--disable-infobars')
-    options.add_argument('--headless=old')  # Это улучшенная версия headless режима для новых версий Chrome
+    #options.add_argument('--headless')  # Это улучшенная версия headless режима для новых версий Chrome
     options.add_argument('--remote-debugging-port=9222')
     options.add_argument('--disable-gpu')  # Обязательно отключите GPU для работы headless режима на Windows
     options.add_argument('--no-sandbox')  # Иногда помогает на Windows
@@ -203,7 +203,7 @@ def main():
                     send_message_to_channel(startup_message, disable_notification=True)
                     startup_message_sent = True
             if datetime.now() - last_message_time >= timedelta(hours=6):
-                info_message = f"Скрипт работает. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                info_message = f"Продолжаю усердно работать. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
                 logging.info(f"Отправляем информационное сообщение без звука: {info_message}")
                 send_message_to_channel(info_message, disable_notification=True)  # Без звука
                 last_message_time = datetime.now()
