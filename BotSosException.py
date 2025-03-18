@@ -73,7 +73,7 @@ def setup_driver():
     options.add_argument('--disable-autofill')
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--disable-infobars')
-    #options.add_argument('--headless')  # Это улучшенная версия headless режима для новых версий Chrome
+    options.add_argument('--headless')  # Это улучшенная версия headless режима для новых версий Chrome
     options.add_argument('--remote-debugging-port=9222')
     options.add_argument('--disable-gpu')  # Обязательно отключите GPU для работы headless режима на Windows
     options.add_argument('--no-sandbox')  # Иногда помогает на Windows
