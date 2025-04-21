@@ -8,6 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from contextlib import suppress
 
 from config import URL, LOGIN_USERNAME, LOGIN_PASSWORD, TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 
@@ -17,9 +18,10 @@ LOGIN_FIELD = "//input[@name='login']"
 PASSWORD_FIELD = "//input[@name='password']"
 LOGIN_BUTTON = "//button[@type='button']"
 APPLICATIONS_TAB = "//a[text()='Заявки']"
-DISTRIBUTED_IN_MY_GROUPS_TAB = "//a[text() = 'Распределенные в моих группах']"
+DISTRIBUTED_IN_MY_GROUPS_TAB = "//a[text() = 'Все заявки моих групп']"
 SELECT_FILTER = "(//div[@class = 'flex-greedy']//div[@title = 'Настройки списка отличаются от сохраненных в виде']/following-sibling::input)[2]"
 SELECT_FILTER_ELEMENT_SOS = "//span[text()= 'SOS Аптека']"
+# SELECT_FILTER_ELEMENT_SOS = "//span[text()= 'Обновление']"  # Отладка
 APPLY_BUTTON = "//div[text()='Применить']/../.."
 # APPLICATION_NUMBER = "//table[@class='cellTableWidget']/tbody/tr//div[@class='integerView']"
 APPLICATION_NUMBER = "(//table[@class='cellTableWidget'])[3]/tbody/tr//div[@class='integerView']"
@@ -49,7 +51,7 @@ def send_message_to_channel(message, disable_notification=False):
 
 def check_for_operation_error(driver):
     """Проверка появления окна 'Операция не может быть завершена'"""
-    original_implicitly_wait = driver.timeouts.implicit_wait
+    original_implicitly_wait = 60  # вручную указываем значение из setup_driver
     try:
         driver.implicitly_wait(0)
         elements = driver.find_elements(By.XPATH, OPERATION_ERROR)
@@ -67,9 +69,8 @@ def setup_driver():
         'profile.password_manager_enabled': False,
         'credentials_enable_service': False,
     })
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
     options.add_experimental_option('useAutomationExtension', False)
-    options.add_experimental_option('excludeSwitches', ['enable-automation'])
     options.add_argument('--disable-autofill')
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--disable-infobars')
@@ -122,6 +123,7 @@ def apply_filters(driver):
     check_for_operation_error(driver)
     time.sleep(0.5)
     select_filter.send_keys('SOS')
+    # select_filter.send_keys('Обновление')
     check_for_operation_error(driver)
     time.sleep(0.5)
     select_filter_element_sos = wait.until(EC.visibility_of_element_located((By.XPATH, SELECT_FILTER_ELEMENT_SOS)))
@@ -147,9 +149,7 @@ def collect_data(driver):
         if numbers and subjects:
             logging.debug(f"Полученные номера заявок: {[num.text for num in numbers]}")
             logging.debug(f"Полученные темы: {[subject.text for subject in subjects]}")
-
             data = list(zip([num.text for num in numbers], [subject.text for subject in subjects]))
-
             for num, subject in data:
                 logging.debug(f"Номер заявки: {num}, Тема заявки: {subject}")
 
@@ -170,59 +170,65 @@ def main():
     processed_applications = set()  # Множество уже отработанных заявок по которым уже было отправлено сообщение
     last_message_time = datetime.now()  # Время последнего отправленного сообщения
     startup_message_sent = False  # Флаг для отслеживания отправки стартового сообщения
-    while True:
-        driver = None
-        skip_sleep = False
-        try:
-            driver = setup_driver()
-            login(driver, URL, LOGIN_USERNAME, LOGIN_PASSWORD)
-            navigate_to_applications(driver)
-            apply_filters(driver)
-            data = collect_data(driver)
 
-            if data:
-                current_applications = set(num for num, subject in data)  # Все заявки текущей итерации
-                new_applications = current_applications - processed_applications  # Новые заявки
-                if new_applications:
-                    message_lines = []
-                    for num, subject in data:
-                        if num in new_applications:
-                            message_lines.append(f"Номер: {num}, Тема: {subject}")
-                    message = "Новые заявки:\n" + "\n".join(message_lines)
-                    logging.info("Отправляем сообщение в Telegram:")
-                    logging.info(message)
-                    send_message_to_channel(message, disable_notification=False)  # Со звуком False
-                    processed_applications.update(new_applications)
-                    last_message_time = datetime.now()
+    try:
+        while True:
+            driver = None
+            skip_sleep = False
+            try:
+                driver = setup_driver()
+                login(driver, URL, LOGIN_USERNAME, LOGIN_PASSWORD)
+                navigate_to_applications(driver)
+                apply_filters(driver)
+                data = collect_data(driver)
+
+                if data:
+                    current_applications = set(num for num, _ in data)  # Все заявки текущей итерации
+                    new_applications = current_applications - processed_applications  # Новые заявки
+                    if new_applications:
+                        message_lines = [f"Номер: {num}, Тема: {subject}" for num, subject in data if num in new_applications]
+                        message = "Новые заявки:\n" + "\n".join(message_lines)
+                        logging.info(message)
+                        send_message_to_channel(message, disable_notification=False)  # Со звуком False
+                        processed_applications.update(new_applications)
+                        last_message_time = datetime.now()
+                    else:
+                        logging.info("Новых заявок нет.")
                 else:
-                    logging.info("Новых заявок нет.")
-            else:
-                if not startup_message_sent:
-                    startup_message = f"С момента запуска заявок не было {datetime.now().strftime('%Y-%m-%d %H:%M')}."
-                    logging.info(f"Отправляем информационное сообщение без звука: {startup_message}")
-                    send_message_to_channel(startup_message, disable_notification=True)
-                    startup_message_sent = True
-            if datetime.now() - last_message_time >= timedelta(hours=6):
-                info_message = f"Продолжаю усердно работать. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
-                logging.info(f"Отправляем информационное сообщение без звука: {info_message}")
-                send_message_to_channel(info_message, disable_notification=True)  # Без звука
-                last_message_time = datetime.now()
-        except OperationCannotBeCompletedException as e:
-            logging.info(f"Обнаружено сообщение: {e}")
-            skip_sleep = True
-        except Exception as e:
-            text_e = f"Произошла ошибка в main: {e}"
-            logging.exception(text_e)
-            # send_message_to_channel(text_e)
-            skip_sleep = True
-        finally:
-            if driver:
-                driver.quit()
-            if not skip_sleep:
-                logging.info("Ждём 5 минут перед следующей проверкой...")
-                time.sleep(300)
-            else:
-                logging.info("Перезапуск скрипта без ожидания 5 минут из-за ошибки.")
+                    if not startup_message_sent:
+                        startup_message = f"С момента запуска заявок не было {datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                        logging.info(startup_message)
+                        send_message_to_channel(startup_message, disable_notification=True)
+                        startup_message_sent = True
+
+                # Периодические сообщения
+                if datetime.now() - last_message_time >= timedelta(hours=6):
+                    info_message = f"Продолжаю усердно работать. Новых заявок нет на {datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                    logging.info(info_message)
+                    send_message_to_channel(info_message, disable_notification=True)
+                    last_message_time = datetime.now()
+
+                # Очистка устаревших заявок (через сутки)
+                if len(processed_applications) > 1000:
+                    processed_applications = set(list(processed_applications)[-500:])
+
+            except OperationCannotBeCompletedException as e:
+                logging.info(f"Обнаружено сообщение: {e}")
+                skip_sleep = True
+            except Exception as e:
+                logging.exception(f"Произошла ошибка в main: {e}")
+                skip_sleep = True
+            finally:
+                if driver:
+                    with suppress(Exception):
+                        driver.quit()
+                if not skip_sleep:
+                    logging.info("Ждём 5 минут перед следующей проверкой...")
+                    time.sleep(300)
+                else:
+                    logging.info("Перезапуск скрипта без ожидания из-за ошибки.")
+    except KeyboardInterrupt:
+        logging.info("Остановлено пользователем.")
 
 
 if __name__ == "__main__":
